@@ -2,16 +2,16 @@
 
 import { NextStudio } from 'next-sanity/studio';
 import { defineConfig } from 'sanity';
-import { deskTool } from 'sanity/desk';
-import product from '@/sanity/schemas/product';
-import collection from '@/sanity/schemas/collection';
+import { structureTool } from 'sanity/structure';
+import product from '../../../sanity/schemas/product';
+import collection from '../../../sanity/schemas/collection';
 
 const config = defineConfig({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
   title: 'SRUF Brand Dashboard',
   basePath: '/admin',
-  plugins: [deskTool()],
+  plugins: [structureTool()],
   schema: {
     types: [product, collection],
   },
