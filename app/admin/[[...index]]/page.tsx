@@ -3,8 +3,8 @@
 import { NextStudio } from 'next-sanity/studio';
 import { defineConfig } from 'sanity';
 import { structureTool } from 'sanity/structure';
-import product from '../../../sanity/schemas/product';
-import collection from '../../../sanity/schemas/collection';
+import { product } from '../../../sanity/schemaTypes/product';
+import { collection } from '../../../sanity/schemaTypes/collection';
 
 const config = defineConfig({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
