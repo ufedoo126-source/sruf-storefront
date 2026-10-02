@@ -7,9 +7,10 @@ import {
   Menu, 
   X, 
   Globe, 
-  ArrowUpRight
+  ArrowUpRight 
 } from "lucide-react";
 import { client } from "@/sanity/lib/client";
+import { usePaystackPayment } from "react-paystack";
 
 interface Product {
   id: string;
@@ -23,6 +24,44 @@ interface Product {
   colors: string[];
 }
 
+// Paystack Button Component
+const PaystackButton = ({ amountNGN, email, onSuccess }: { amountNGN: number; email: string; onSuccess: () => void }) => {
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_KEY || "pk_test_sample_key";
+
+  const config = {
+    reference: new Date().getTime().toString(),
+    email: email || "customer@sruf.com",
+    amount: amountNGN * 100, // Paystack expects amount in Kobo
+    publicKey,
+    currency: "NGN",
+  };
+
+  const initializePayment = usePaystackPayment(config);
+
+  return (
+    <button
+      onClick={() => {
+        if (!email) {
+          alert("Please enter your email address to proceed with checkout.");
+          return;
+        }
+        initializePayment({
+          onSuccess: (reference: any) => {
+            alert(`Payment Successful! Reference: ${reference.reference}`);
+            onSuccess();
+          },
+          onClose: () => {
+            console.log("Payment canceled");
+          },
+        });
+      }}
+      className="w-full bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 text-white py-4 text-xs font-extrabold uppercase tracking-widest rounded-xl hover:opacity-90 transition shadow-lg shadow-pink-500/20"
+    >
+      PAY NOW WITH PAYSTACK
+    </button>
+  );
+};
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +69,7 @@ export default function Home() {
   const [cart, setCart] = useState<{ product: Product; size: string; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [customerEmail, setCustomerEmail] = useState("");
 
   const categories = ["All", "New Arrivals", "T-Shirts", "Polo", "Outerwear", "Accessories"];
 
@@ -97,16 +137,14 @@ export default function Home() {
       : `$${(usd || 0).toLocaleString()}`;
   };
 
-  const totalAmount = cart.reduce((sum, item) => {
-    const price = currency === "NGN" ? item.product.priceNGN : item.product.priceUSD;
-    return sum + (price || 0) * item.quantity;
-  }, 0);
+  const totalAmountNGN = cart.reduce((sum, item) => sum + (item.product.priceNGN || 0) * item.quantity, 0);
+  const totalAmountUSD = cart.reduce((sum, item) => sum + (item.product.priceUSD || 0) * item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Colorful Top Banner */}
+      {/* Top Banner */}
       <div className="bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 text-white text-xs py-2.5 px-4 font-bold tracking-widest uppercase flex justify-between items-center shadow-lg">
-        <span className="hidden sm:inline">SRUF @ 5!</span>
+        <span className="hidden sm:inline">SRUF '26 — EXPRESSION, COLOR & CULTURE</span>
         <span className="w-full sm:w-auto text-center">WORLDWIDE SHIPPING AVAILABLE</span>
         <button 
           onClick={() => setCurrency(c => c === "NGN" ? "USD" : "NGN")} 
@@ -165,8 +203,8 @@ export default function Home() {
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-pink-600/20 rounded-full blur-3xl pointer-events-none"></div>
         
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-30 scale-105 hover:scale-100 transition duration-1000 mix-blend-luminosity"
-         style={{ backgroundImage: "url('/background.jpeg')" }}
+          className="absolute inset-0 bg-cover bg-center opacity-70 hover:scale-105 transition duration-1000"
+          style={{ backgroundImage: "url('/background.jpeg')" }}
         />
         
         <div className="relative z-10 max-w-2xl space-y-4">
@@ -277,7 +315,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* Cart Drawer */}
+      {/* Cart Drawer with Paystack */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsCartOpen(false)} />
@@ -295,7 +333,7 @@ export default function Home() {
                   YOUR BAG IS CURRENTLY EMPTY.
                 </div>
               ) : (
-                <div className="mt-6 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="mt-6 space-y-4 max-h-[50vh] overflow-y-auto pr-2">
                   {cart.map((item, idx) => (
                     <div key={idx} className="flex gap-4 border-b border-neutral-800/80 pb-4">
                       <img src={item.product.image} className="w-16 h-20 object-cover bg-neutral-900 rounded-md" alt="" />
@@ -312,13 +350,34 @@ export default function Home() {
 
             {cart.length > 0 && (
               <div className="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <label className="block text-xs text-neutral-400 uppercase font-bold mb-1">
+                    Email Address for Receipt
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="your-email@example.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+
                 <div className="flex justify-between text-sm font-bold tracking-tight text-white">
                   <span>SUBTOTAL</span>
-                  <span className="font-mono text-pink-400">{currency === "NGN" ? `₦${totalAmount.toLocaleString()}` : `$${totalAmount.toLocaleString()}`}</span>
+                  <span className="font-mono text-pink-400">
+                    {currency === "NGN" ? `₦${totalAmountNGN.toLocaleString()}` : `$${totalAmountUSD.toLocaleString()}`}
+                  </span>
                 </div>
-                <button className="w-full bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 text-white py-4 text-xs font-extrabold uppercase tracking-widest rounded-xl hover:opacity-90 transition shadow-lg shadow-pink-500/20">
-                  PROCEED TO CHECKOUT
-                </button>
+
+                <PaystackButton
+                  amountNGN={totalAmountNGN}
+                  email={customerEmail}
+                  onSuccess={() => {
+                    setCart([]);
+                    setIsCartOpen(false);
+                  }}
+                />
               </div>
             )}
           </div>
